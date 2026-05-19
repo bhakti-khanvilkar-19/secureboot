@@ -1,0 +1,43 @@
+# HABv4 CSF Template for imx-boot (SPL + TF-A + OP-TEE + U-Boot)
+#
+# Placeholders to replace:
+#   @@KEY_DIR@@         = Path to directory containing SRK table and key files
+#   @@FLASH_BIN@@       = Path to imx-boot binary (e.g., imx-boot.bin)
+#   @@SPL_LOAD_ADDR@@   = SPL load address (e.g., 0x7E1000 for i.MX8MP)
+#   @@PADDED_SIZE@@     = Image size padded to 4KB boundary (hex, e.g., 0x1F4000)
+#   @@SRK_INDEX@@       = SRK index to use (0, 1, 2, or 3)
+#
+# Usage:
+#   sed -e 's|@@KEY_DIR@@|/path/to/keys|g' \
+#       -e 's|@@FLASH_BIN@@|imx-boot.bin|g' \
+#       -e 's|@@SPL_LOAD_ADDR@@|0x7E1000|g' \
+#       -e 's|@@PADDED_SIZE@@|0x1F4000|g' \
+#       -e 's|@@SRK_INDEX@@|0|g' \
+#       spl-uboot-csf.cfg.template > imxboot_csf.cfg
+#   cst -o imxboot_csf.bin -i imxboot_csf.cfg
+
+[Header]
+    Version = 4.3
+    Hash Algorithm = sha256
+    Engine = CAAM
+    Engine Configuration = 0
+    Certificate Format = X509
+    Signature Format = CMS
+
+[Install SRK]
+    File = "@@KEY_DIR@@/SRK_1_2_3_4_table.bin"
+    Source index = @@SRK_INDEX@@
+
+[Install CSFK]
+    File = "@@KEY_DIR@@/crts/CSF1_1_sha256_2048_65537_v3_usr_crt.pem"
+
+[Authenticate CSF]
+
+[Install Key]
+    Verification index = 0
+    Target index = 2
+    File = "@@KEY_DIR@@/crts/IMG1_1_sha256_2048_65537_v3_usr_crt.pem"
+
+[Authenticate Data]
+    Verification index = 2
+    Blocks = @@SPL_LOAD_ADDR@@ 0x000 @@PADDED_SIZE@@ "@@FLASH_BIN@@"

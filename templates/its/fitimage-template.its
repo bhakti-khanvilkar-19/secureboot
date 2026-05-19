@@ -1,0 +1,93 @@
+/*
+ * FIT Image Source (ITS) Template for phyCORE-i.MX8MP
+ *
+ * Placeholders:
+ *   @@DESCRIPTION@@      = Image description string
+ *   @@KERNEL_BINARY@@    = Path to kernel Image binary
+ *   @@DTB_BINARY@@       = Path to device tree blob
+ *   @@RAMDISK_BINARY@@   = Path to initramfs (or delete ramdisk section)
+ *   @@KERNEL_LOAD_ADDR@@ = Kernel load address (e.g., 0x40480000)
+ *   @@DTB_LOAD_ADDR@@    = DTB load address (e.g., 0x43000000)
+ *   @@SIGN_KEYNAME@@     = FIT signing key name (must match .pem filename)
+ *   @@BOARD_NAME@@       = Board description for configuration
+ *   @@VERITY_ROOT_HASH@@ = dm-verity root hash (64 hex chars)
+ *   @@VERITY_SALT@@      = dm-verity salt (64 hex chars)
+ *   @@ROOTFS_DEVICE@@    = Root filesystem device (e.g., /dev/mmcblk2p3)
+ *   @@VERITY_OFFSET@@    = Hash tree offset in bytes (= rootfs size)
+ *
+ * Usage in Yocto: kernel-fitimage.bbclass auto-substitutes most values.
+ * Manual usage: sed -i 's|@@VAR@@|value|g' fitimage-template.its
+ */
+
+/dts-v1/;
+
+/ {
+	description = "@@DESCRIPTION@@";
+	#address-cells = <1>;
+
+	images {
+		kernel@1 {
+			description = "Linux kernel";
+			data = /incbin/("@@KERNEL_BINARY@@");
+			type = kernel;
+			arch = arm64;
+			os = linux;
+			compression = none;
+			load = <@@KERNEL_LOAD_ADDR@@>;
+			entry = <@@KERNEL_LOAD_ADDR@@>;
+			hash@1 {
+				algo = sha256;
+			};
+			signature@1 {
+				algo = sha256,rsa2048;
+				key-name-hint = "@@SIGN_KEYNAME@@";
+			};
+		};
+
+		fdt@1 {
+			description = "Flattened Device Tree blob";
+			data = /incbin/("@@DTB_BINARY@@");
+			type = flat_dt;
+			arch = arm64;
+			compression = none;
+			load = <@@DTB_LOAD_ADDR@@>;
+			hash@1 {
+				algo = sha256;
+			};
+		};
+
+		ramdisk@1 {
+			description = "initramfs";
+			data = /incbin/("@@RAMDISK_BINARY@@");
+			type = ramdisk;
+			arch = arm64;
+			os = linux;
+			compression = none;
+			hash@1 {
+				algo = sha256;
+			};
+		};
+	};
+
+	configurations {
+		default = "conf@1";
+
+		conf@1 {
+			description = "@@BOARD_NAME@@ Secure Boot";
+			kernel = "kernel@1";
+			fdt = "fdt@1";
+			ramdisk = "ramdisk@1";
+			/*
+			 * The signature covers kernel + fdt + ramdisk
+			 * Bootargs are embedded here, signed with the config,
+			 * so root hash and verity params cannot be tampered.
+			 */
+			bootargs = "console=ttymxc1,115200n8 rootwait ro quiet panic=5 lockdown=confidentiality systemd.verity=yes systemd.verity_root_hash=@@VERITY_ROOT_HASH@@ systemd.verity_root_data=@@ROOTFS_DEVICE@@ systemd.verity_root_hash_sig= root=/dev/mapper/vroot rootfstype=ext4";
+			signature@1 {
+				algo = sha256,rsa2048;
+				key-name-hint = "@@SIGN_KEYNAME@@";
+				sign-images = "kernel", "fdt", "ramdisk";
+			};
+		};
+	};
+};
